@@ -1,153 +1,157 @@
-// Note Importing Required Libraries..!
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
 const connectMongo = require("./src/Database/db");
-const UserModal = require("./src/Modals/userModal/user-modal");
+const UserModal = require("./src/Modals/userModals/user-modals");
 const nodemailer = require("nodemailer");
 const credentials = require("./src/Credentials/credentials");
+const sentMail = require("./src/Controller/sentMail");
 const { default: mongoose } = require("mongoose");
 
 
-// Static Variable...!
+// Static Variables!
 const app = express();
-const port = 5000;
+const port = 8080;
 
-
-// Note express MiddleWares!
+// Express MiddleWares!
 app.use(express.json());
-app.use(cors());
 app.use(morgan("dev"));
+app.use(cors());
 
-// Note Mongodb connected here !
+//Note MongoDb connected here!
 connectMongo();
 
-//Note this is route to Sign up user functionality in DB! 
+// Note this functionality for sign up user from data base method Post!
+
+
 app.post(
-    "/user/signup",
+    "/user/register",
     async (req, res) => {
         const {
             userName,
-            userEmail,
-            userPassword,
             userNum,
+            userEmail,
+            userPassword
         } = req.body;
+        // console.log(`All data ${JSON.stringify(req.body)}`)
         try {
             //400!
-            if (!userName || !userEmail || !userPassword || !userNum) {
+            if (!userName || !userNum || !userEmail || !userPassword) {
                 return res.status(400).send({
                     status: false,
-                    messege: "All Feils Are Required!"
+                    message: "All fields are required"
                 })
+
             }
 
-            //402!
-            const isUserExist = await UserModal.findOne({ email: userEmail });
+            //404! Exist or not exist!
+
+            const isUserExist = await UserModal.findOne({ email: userEmail })
 
             if (isUserExist) {
-                return res.status(402).send({
+                return res.status(404).send({
                     status: false,
-                    messege: "Email is already Exist!"
+                    message: "Email is already exist"
                 })
             }
 
-            // 200 user registered successfully!
+            //200 user Registered Sucessfully!
 
             const encodePassword = btoa(userPassword);
 
-            const newUserSave = {
+            const userToSave = {
                 userName,
+                contactNum: userNum,
                 email: userEmail,
                 password: encodePassword,
-                contactNum: userNum
-            }
-            const newUserAdd = new UserModal(newUserSave);
+            };
+
+            const newUserAdd = new UserModal(userToSave);
 
             const userSave = await newUserAdd.save();
-            console.log(`NewUserSave ${userSave}`);
+            console.log(`User Adeded ${userSave}`)
 
             if (userSave) {
                 return res.status(200).send({
                     status: true,
-                    messege: "User Registered Sucessfully!",
-                    data: newUserAdd,
-                })
+                    message: "User Registered Sucessfully",
+                    data: newUserAdd
+                });
             }
+
 
         }
 
         catch (error) {
+            console.log(`Something went wrong while fetching data from db: ${error} `);
             //500!
-            console.log(`Something went wrong while fetch data from DB: ${error}`)
             return res.status(500).send({
                 status: false,
-                messege: "Something went wrong while fetch data from DB!"
-            })
+                message: "Something went wrong while fetching data from db:"
+            });
         }
     }
-)
+);
 
-//Note this is route to Log in user functionality in DB!
+// Note this functionality for sign in user from data base method post!
+
 app.post(
     "/user/Login",
     async (req, res) => {
-        const { Email, Password } = req.body;
-
+        const { email, password } = req.body;
         try {
             //400!
-            if (!Email || !Password) {
+            if (!email || !password) {
                 return res.status(400).send({
                     status: false,
-                    messege: "Email and Password Required!"
+                    message: "Email and Password Required!"
                 })
             }
-            //401!
-            const isEmailExist = await UserModal.findOne({ email: Email });
-            // console.log(`is Email Exist ${isEmailExist}`)
 
-            if (!isEmailExist) {
+            //401!
+            const isUserExist = await UserModal.findOne({ email });
+            // console.log(`user exist ${isUserExist}`);
+            if (!isUserExist) {
                 return res.status(401).send({
                     status: false,
-                    messege: "Email is already Exist"
+                    message: "Email does not Exist"
                 })
             }
 
-
-            //402!
-
-            const userPassword = isEmailExist.password
+            // 402!
+            const userPassword = isUserExist.password;
             const decodePassword = atob(userPassword);
-
-            if (Password != decodePassword) {
+            // console.log(`decodePassword ${decodePassword}`);
+            if (password != decodePassword) {
                 return res.status(402).send({
                     status: false,
-                    messege: "Invalid Pasword"
+                    message: "invalid Password"
                 })
             }
-            //200!s
+
+            //200!
             return res.status(200).send({
                 status: true,
-                messege: "User Logged in Successfully!",
-                data: isEmailExist
+                message: "You have logged in Successfully!",
+                data: isUserExist
             })
-
         }
 
         catch (error) {
             //500!
-            console.log(`Something Went Wrong While Login Email from DB: ${error}`);
+            console.log(`Something Went wrong while fetching data fro db :  ${error}`);
             return res.status(500).send({
                 status: false,
-                messege: "Something Went Wrong While Login Email from DB!"
+                message: "Something Went wrong while fetching data fro db"
             })
         }
     }
-)
+);
 
 const sendEmailToUser = (email, url, uid) => {
-    console.log(`Sent Email ${email}`);
+    console.log(`email sent ${email}`)
 
-    const isMailSent = true;
+    let isMailSent = true
 
     const encryptedUserId = btoa(uid);
 
@@ -162,166 +166,158 @@ const sendEmailToUser = (email, url, uid) => {
     const receiverDetails = {
         from: '"Azam shah 👻" <azams019@gmail.com>',
         to: email,
-        Subject: "Email Verification",
-        text: `Please Click the Link for forget Password! ${url}
-        User Id : ${encryptedUserId} `
-    }
+        subject: "Email Varification",
+        text: `please click the Link for your forget password : ${url}
+        User Id ${encryptedUserId}`
+    };
 
     transporter.sendMail(
         receiverDetails,
         (err, emailInfo) => {
             if (!err) {
-                console.log(`Email  sent to user Sucessfully`, emailInfo)
+                console.log(`Email sent successfully :`, emailInfo)
             }
 
             else {
                 isMailSent = false
-                console.log(`Something went wrong while forget password in DB ${err}`)
+                console.log(`Somthing went wrong while send email to user ${err}`)
             }
-
         }
-
     )
-
     return isMailSent;
-
 }
 
+// Note Api Route to verify Users!
 app.post(
-    "/user/varification/DB",
+    "/user/verify",
     async (req, res) => {
         const { email } = req.body;
-        // console.log(JSON.stringify(req.body))
-
         try {
             //400!
             if (!email) {
                 return res.status(400).send({
                     status: false,
-                    messege: "Email is Required!"
-                })
+                    message: "Email is Required"
+                });
             }
-
-            //401
+            //401!
             const isUserExist = await UserModal.findOne({ email });
-            console.log(`Is User Exist : ${isUserExist}`)
-
+            // console.log(`user Email ${isUserExist}`)
             if (!isUserExist) {
                 return res.status(401).send({
                     status: false,
-                    messege: "Email Does not Exist"
+                    message: "Email does not Exist"
                 })
             }
             //200!
-            const redirectedUrl = "http://localhost:5000/user/forgetPassword/portal"
+            const redirectedUrl = `http://localhost:8080/user/forgetPassword/portal/`
             const isEmailSent = sendEmailToUser(email, redirectedUrl, isUserExist._id);
-            console.log(`is Email Sent : ${isEmailSent}`)
+            console.log(`Email Sent : ${isEmailSent}`)
 
-            return res.status(200).send({
-                status: true,
-                messege: "Email varification Sucessfully Kindly Check your Email"
-            })
+            if (isEmailSent) {
+                return res.status(200).send({
+                    status: true,
+                    message: "Email verified successfully check your Email!"
+                })
+            }
         }
 
         catch (error) {
             //500!
-            console.log(`Something went wrong while update password: ${error}`);
+            console.log(`Something went wrong while verifying Data from db: ${error}`)
             return res.status(500).send({
                 status: false,
-                messge: "Something went wrong while update password"
+                message: "Something went wrong while verifying Data from db"
             })
         }
     }
 )
 
-// Note route to forget password from user!
+// Note go to route / forget Password from user..!
 
 app.get(
     "/user/forgetPassword/portal",
     (req, res) => {
+        // const { id } = req.params;
+        // console.log(`Uid : ${id}`)
 
-        const redirectUrl = "https://hurt-beginner.surge.sh/";
-        return res.redirect(redirectUrl);
+        const webRedirectUrl = "https://laughable-comb.surge.sh/"
+        return res.redirect(webRedirectUrl);
     }
 )
 
-// Note route to password change in new password user!
+// Note Api  route to go  Update Password!..
 
 app.put(
-    "/user/update/forgetPassword",
+    "/user/update/password",
     async (req, res) => {
         const { userId, newPassword } = req.body;
-        console.log(`User Id: ${userId}`)
-        console.log(`New Password: ${newPassword}`)
+        console.log(`user Id : ${userId}`)
+        console.log(`update password:  ${newPassword}`)
 
         try {
             //400!
             if (!userId || !newPassword) {
                 return res.status(400).send({
                     status: false,
-                    messege: "UserId and New Password Required"
+                    message: "UserId And New password Requried"
                 })
             }
 
-            const decodeId = atob(userId);
+            const decodeID = atob(userId);
 
             //401!
-            const isValidId = new mongoose.isValidObjectId(decodeId);
+            const isValidId = mongoose.isValidObjectId(decodeID);
+
             if (!isValidId) {
-                return res.status.send({
+                return res.status(401).send({
                     status: false,
-                    messege: "Invalid User Id"
+                    message: "Invalid User Id"
                 })
+
             }
 
             //200!
-            const encodePassword = btoa(newPassword);
 
-            const newUpdateUser = await UserModal.findByIdAndUpdate(
-                decodeId,
-                { password: encodePassword },
+            const encodedPassword = btoa(newPassword)
+            const updateUser = await UserModal.findByIdAndUpdate(
+                decodeID,
+                { password: encodedPassword },
                 { new: true }
-            );
-            if (newUpdateUser) {
+            )
+
+            if (updateUser) {
                 return res.status(200).send({
                     status: true,
-                    messege: "New Password Updated Sucessfully",
-                    data: newUpdateUser
+                    message: "User id And New Password updated",
+                    data: updateUser
                 })
             }
-
 
         }
 
         catch (error) {
             //500!
-            console.log(`Something went wrong while update Password from DB : ${error}`)
+            console.log(`Something went wrong while updating password : ${error}`)
             return res.status(500).send({
                 status: false,
-                messege: "Something went wrong while update Password from DB"
+                message: "Something went wrong while updating password"
             })
-
         }
     }
 )
 
 
 
-
-// app.get(
-//     "/",
-//     (req, res) => {
-//         return res.status(200).send({
-//             status: true,
-//             messege: "wellcome to server node js!"
-//         })
-//     }
-// )
+// app.get("/Sendmail", sentMail);
 
 
+
+
+// Note Server Run...!
 app.listen(
     port,
     () => {
         console.log(`Server is running on http://localhost:${port}`);
     }
-)
+);

@@ -1,23 +1,21 @@
-
+// Note mongo data base configuration file...!
 const mongoose = require("mongoose");
-
-const dbUrl = "mongodb+srv://azam-project1:azam0315@back-end-development.qy3ydsz.mongodb.net/?retryWrites=true&w=majority&appName=Back-End-Development";
-
-const dbName = "Quizapp";
-
+const dbName = "myDatabase";
+const dbUrl = "mongodb+srv://azam-project1:azam0315@back-end-development.qy3ydsz.mongodb.net/?retryWrites=true&w=majority&appName=Back-End-Development"
 
 const connectMongo = async () => {
     try {
-        const isconnected = await mongoose.connect(
+        const isconected = await mongoose.connect(
             dbUrl,
             { dbName: dbName },
         )
-        isconnected && console.log("Mongo Db Connected Successfully!")
+        isconected && console.log(`mongo db conected sucessfully`);
+    }
 
-    }
     catch (error) {
-        console.log(`Somethin went wrong while connecting dataBase ${error}`);
+        console.log(`something went wrong in mongo db database ${error}`)
     }
+
 }
 
 module.exports = connectMongo;
